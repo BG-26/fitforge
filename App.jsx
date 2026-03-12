@@ -1895,6 +1895,115 @@ function HomeTab({ user, onNavigate }) {
   );
 }
 
+// ─── LANDING PAGE ─────────────────────────────────────────────────────────────
+function LandingPage({ onStart }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setVisible(true), 80); return () => clearTimeout(t); }, []);
+
+  const tracks = [
+    { id:"FORGE", icon:"🔩", color:"#F87171", label:"FORGE", sub:"Strength" },
+    { id:"SURGE", icon:"⚡", color:"#F0C060", label:"SURGE", sub:"Conditioning" },
+    { id:"FLOW",  icon:"🌊", color:"#5EEAD4", label:"FLOW",  sub:"Mobility" },
+  ];
+
+  return (
+    <div style={{
+      minHeight:"100vh", background:BG, display:"flex", flexDirection:"column",
+      alignItems:"center", justifyContent:"center", fontFamily:FB, color:TEXT,
+      padding:"0 28px", position:"relative", overflow:"hidden",
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0;}
+        @keyframes fadeUp { from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes pulse  { 0%,100%{opacity:0.18} 50%{opacity:0.32} }
+      `}</style>
+
+      {/* Background glow */}
+      <div style={{position:"absolute",top:"18%",left:"50%",transform:"translateX(-50%)",width:420,height:420,borderRadius:"50%",background:"radial-gradient(circle,rgba(240,192,96,0.07) 0%,transparent 70%)",pointerEvents:"none",animation:"pulse 4s ease-in-out infinite"}}/>
+
+      <div style={{
+        maxWidth:480, width:"100%", textAlign:"center",
+        opacity: visible ? 1 : 0,
+        transform: visible ? "none" : "translateY(16px)",
+        transition: "opacity 0.7s ease, transform 0.7s ease",
+      }}>
+
+        {/* Wordmark */}
+        <div style={{marginBottom:6}}>
+          <div style={{
+            fontFamily:FD, fontSize:"clamp(56px,16vw,88px)", fontWeight:900,
+            letterSpacing:"0.12em", lineHeight:0.9, color:TEXT,
+            textTransform:"uppercase",
+          }}>
+            FIT<span style={{color:GOLD}}>FORGE</span>
+          </div>
+        </div>
+
+        {/* Tagline */}
+        <div style={{
+          fontSize:"clamp(15px,4vw,18px)", color:"rgba(238,242,248,0.55)",
+          fontWeight:500, letterSpacing:"0.04em", marginBottom:52,
+          animation: visible ? "fadeUp 0.8s ease 0.2s both" : "none",
+        }}>
+          Smarter Training Starts Here.
+        </div>
+
+        {/* Track trio */}
+        <div style={{
+          display:"flex", justifyContent:"center", gap:14, marginBottom:56,
+          animation: visible ? "fadeUp 0.8s ease 0.4s both" : "none",
+        }}>
+          {tracks.map((t, i) => (
+            <div key={t.id} style={{
+              flex:1, maxWidth:130,
+              padding:"20px 12px 18px",
+              borderRadius:18,
+              background:`${t.color}08`,
+              border:`1px solid ${t.color}25`,
+              display:"flex", flexDirection:"column", alignItems:"center", gap:10,
+              transition:"transform 0.2s, border-color 0.2s",
+            }}
+              onMouseEnter={e=>{ e.currentTarget.style.transform="translateY(-3px)"; e.currentTarget.style.borderColor=`${t.color}55`; }}
+              onMouseLeave={e=>{ e.currentTarget.style.transform="none"; e.currentTarget.style.borderColor=`${t.color}25`; }}
+            >
+              <div style={{fontSize:28}}>{t.icon}</div>
+              <div>
+                <div style={{fontFamily:FD,fontSize:18,fontWeight:900,color:t.color,letterSpacing:"0.1em"}}>{t.label}</div>
+                <div style={{fontSize:11,color:"rgba(238,242,248,0.4)",fontWeight:500,marginTop:2,letterSpacing:"0.06em",textTransform:"uppercase"}}>{t.sub}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <div style={{
+          animation: visible ? "fadeUp 0.8s ease 0.55s both" : "none",
+        }}>
+          <button onClick={onStart} style={{
+            width:"100%", padding:"20px 0",
+            borderRadius:16, border:"none",
+            background:`linear-gradient(135deg,${GOLD},#D97706)`,
+            color:BG, fontFamily:FD, fontSize:22, fontWeight:900,
+            letterSpacing:"0.12em", cursor:"pointer",
+            boxShadow:`0 8px 40px rgba(240,192,96,0.25)`,
+            transition:"transform 0.15s, box-shadow 0.15s",
+          }}
+            onMouseEnter={e=>{ e.currentTarget.style.transform="translateY(-2px)"; e.currentTarget.style.boxShadow="0 12px 48px rgba(240,192,96,0.35)"; }}
+            onMouseLeave={e=>{ e.currentTarget.style.transform="none"; e.currentTarget.style.boxShadow="0 8px 40px rgba(240,192,96,0.25)"; }}
+          >
+            GET STARTED
+          </button>
+          <div style={{marginTop:14,fontSize:12,color:"rgba(238,242,248,0.28)",letterSpacing:"0.05em",lineHeight:1.5}}>
+            Adaptive training powered by personal intelligence.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 const NAV = [
   {id:"home",    label:"Home",      icon:({a,c})=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={a?c:"rgba(238,242,248,0.3)"} strokeWidth="2" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>},
@@ -1908,8 +2017,10 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [tab, setTab] = useState("home");
   const [trainView, setTrainView] = useState("menu");
-  const [healthData, setHealthData] = useState(null); // aggregated from all connected platforms
+  const [healthData, setHealthData] = useState(null);
+  const [showLanding, setShowLanding] = useState(true);
 
+  if (!user && showLanding) return <LandingPage onStart={() => setShowLanding(false)} />;
   if (!user) return <Onboarding onComplete={d=>{ setUser(d); }}/>;
 
   const track = TRACKS[user.track];
