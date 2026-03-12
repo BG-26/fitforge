@@ -1697,7 +1697,9 @@ JSON: {"sessionTitle":"","protocolNote":"","warmup":[{"name":"","duration":"","c
             }))}
             trackId={selectedTrack||"FORGE"}
             trackColor={track?.color||"#F0C060"}
-            trackName={`${track?.name||selectedTrack||"SESSION"} PROTOCOL`}
+            trackName={track?.name||selectedTrack||"SESSION"}
+            ageTierId={user?.ageTier?.id||"PRIME"}
+            limiters={user?.limiters||[]}
             onClose={()=>setShowTimer(false)}
             onComplete={()=>{
               // Mark all slots complete and trigger recap

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 // ─── PROTOCOL → TIMER DERIVATION ENGINE ──────────────────────────────────────
 // Reads actual workout slots and track to produce the right timer config
-export function deriveTimerConfig(slots = [], trackId = "FORGE") {
+export function deriveTimerConfig(slots = [], trackId = "FORGE", ageTierId = "PRIME", limiters = []) {
   if (!slots.length) return getDefaultConfig(trackId);
 
   // Parse sets from string like "3–5", "4", "3–4"
@@ -73,7 +73,7 @@ export function deriveTimerConfig(slots = [], trackId = "FORGE") {
       blocks,
       cycles: 1,
       prepSecs: 10,
-      warmup: deriveWarmup(trackId),
+      warmup: deriveWarmup(trackId, ageTierId, limiters),
       cooldown: deriveCooldown(trackId),
     };
   }
@@ -91,7 +91,7 @@ export function deriveTimerConfig(slots = [], trackId = "FORGE") {
       blocks,
       cycles: 1,
       prepSecs: 10,
-      warmup: deriveWarmup(trackId),
+      warmup: deriveWarmup(trackId, ageTierId, limiters),
       cooldown: deriveCooldown(trackId),
     };
   }
@@ -121,11 +121,33 @@ function getDefaultConfig(trackId) {
   return { ...defaults[trackId]||defaults.FORGE, blocks:[], prepSecs:10, warmup:deriveWarmup(trackId), cooldown:deriveCooldown(trackId) };
 }
 
-function deriveWarmup(trackId) {
+function deriveWarmup(trackId, ageTierId="PRIME", limiters=[]) {
+  // Base per track: FLOW is mobility so short, FORGE needs more prep, SURGE moderate
+  const base = trackId==="FLOW" ? 15 : trackId==="FORGE" ? 25 : 20;
+  const ageMod   = ["MASTERS","ELITE_MASTERS"].includes(ageTierId) ? 5 : 0;
+  const lower    = limiters.some(l=>["lower_back","knee","hip","ankle"].includes(l)) ? 5 : 0;
+  const upper    = limiters.some(l=>["shoulder","wrist","elbow"].includes(l)) ? 5 : 0;
+  const cap = s => Math.min(30, s);
+
   const warmups = {
-    FORGE: [{name:"Arm Circles",secs:30},{name:"Hip Hinge Drill",secs:30},{name:"Bodyweight Squat",secs:30},{name:"Cat-Cow",secs:30}],
-    SURGE: [{name:"Jumping Jacks",secs:30},{name:"High Knees",secs:30},{name:"Arm Swings",secs:30},{name:"Hip Circles",secs:30}],
-    FLOW:  [{name:"Neck Rolls",secs:30},{name:"Shoulder Rolls",secs:30},{name:"Hip Circles",secs:30},{name:"Ankle Circles",secs:30}],
+    FORGE: [
+      {name:"Arm Circles",       secs: cap(base + upper + ageMod)},
+      {name:"Hip Hinge Drill",   secs: cap(base + lower + ageMod)},
+      {name:"Bodyweight Squat",  secs: cap(base + lower + ageMod)},
+      {name:"Cat-Cow",           secs: cap(base + ageMod)},
+    ],
+    SURGE: [
+      {name:"Jumping Jacks",     secs: cap(base + ageMod)},
+      {name:"High Knees",        secs: cap(base + lower + ageMod)},
+      {name:"Arm Swings",        secs: cap(base + upper + ageMod)},
+      {name:"Hip Circles",       secs: cap(base + lower + ageMod)},
+    ],
+    FLOW: [
+      {name:"Neck Rolls",        secs: cap(base + upper + ageMod)},
+      {name:"Shoulder Rolls",    secs: cap(base + upper + ageMod)},
+      {name:"Hip Circles",       secs: cap(base + lower + ageMod)},
+      {name:"Ankle Circles",     secs: cap(base + lower + ageMod)},
+    ],
   };
   return warmups[trackId]||warmups.FORGE;
 }
@@ -259,8 +281,8 @@ const PHASE_STYLE = {
 };
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
-export default function IntervalTimer({ slots=[], trackId="FORGE", trackColor="#F0C060", trackName="SESSION", onClose, onComplete }) {
-  const config   = useRef(deriveTimerConfig(slots, trackId));
+export default function IntervalTimer({ slots=[], trackId="FORGE", trackColor="#F0C060", trackName="SESSION", ageTierId="PRIME", limiters=[], onClose, onComplete }) {
+  const config   = useRef(deriveTimerConfig(slots, trackId, ageTierId, limiters));
   const sequence = useRef(buildSequence(config.current));
 
   const [seqIdx,    setSeqIdx]    = useState(0);
@@ -584,30 +606,22 @@ export default function IntervalTimer({ slots=[], trackId="FORGE", trackColor="#
         <div style={{height:"100%",width:`${phaseProgressPct}%`,background:"rgba(0,0,0,0.35)",transition:"width 1s linear"}}/>
       </div>
 
-      {/* Top bar */}
+      {/* Top bar — workout name centered, controls right only */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 18px",flexShrink:0}}>
-        <div>
-          <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.1em",color:ps.text,opacity:0.55}}>{trackName}</div>
-          {cur.slotIdx !== undefined && (
-            <div style={{fontSize:15,color:ps.text,opacity:0.45}}>Station {(cur.slotIdx||0)+1}/{cfg.blocks.length}</div>
-          )}
-          {cur.setNum && (
-            <div style={{fontSize:15,color:ps.text,opacity:0.45}}>Set {cur.setNum} of {cur.totalSets}</div>
-          )}
-        </div>
-        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:800,color:ps.text,opacity:0.6,letterSpacing:"0.12em"}}>{cfg.formatLabel}</div>
-        <div style={{display:"flex",gap:8}}>
+        <div style={{width:80}}/>
+        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:900,color:ps.text,letterSpacing:"0.12em",textAlign:"center"}}>{trackName}</div>
+        <div style={{display:"flex",gap:8,width:80,justifyContent:"flex-end"}}>
           <button onClick={reset} style={{width:34,height:34,borderRadius:9,background:"rgba(0,0,0,0.15)",border:"none",color:ps.text,opacity:0.65,cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>↺</button>
           <button onClick={onClose} style={{width:34,height:34,borderRadius:9,background:"rgba(0,0,0,0.15)",border:"none",color:ps.text,opacity:0.65,cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
         </div>
       </div>
 
       {/* Phase label */}
-      <div style={{textAlign:"center",padding:"4px 20px",flexShrink:0}}>
+      <div style={{textAlign:"center",padding:"2px 20px",flexShrink:0}}>
         <div key={`${seqIdx}-label`} style={{
           fontFamily:"'Barlow Condensed',sans-serif",
-          fontSize:56,fontWeight:900,letterSpacing:"0.08em",
-          color:ps.text,
+          fontSize:46,fontWeight:900,letterSpacing:"0.08em",
+          color:ps.text,opacity:0.9,
           animation:"flash 0.25s ease"
         }}>{cur.label}</div>
       </div>
@@ -629,17 +643,31 @@ export default function IntervalTimer({ slots=[], trackId="FORGE", trackColor="#
 
             {/* Exercise name + reps */}
             {cur.exercise && (
-              <div key={`${seqIdx}-ex`} style={{marginTop:14,textAlign:"center",padding:"0 24px",animation:"slideUp 0.3s ease"}}>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:800,color:ps.text,opacity:0.9,letterSpacing:"0.04em"}}>{cur.exercise}</div>
-                {cur.reps && <div style={{fontSize:17,color:ps.text,opacity:0.55,marginTop:4}}>{cur.reps}</div>}
+              <div key={`${seqIdx}-ex`} style={{marginTop:10,textAlign:"center",padding:"0 24px",animation:"slideUp 0.3s ease"}}>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:36,fontWeight:800,color:ps.text,opacity:0.95,letterSpacing:"0.04em"}}>{cur.exercise}</div>
+                {cur.reps && <div style={{fontSize:19,color:ps.text,opacity:0.55,marginTop:4}}>{cur.reps}</div>}
               </div>
             )}
 
-            {/* Next exercise on REST screens */}
+            {/* UP NEXT — during WORK: show upcoming rest; during REST: show next exercise */}
+            {(cur.phase==="WORK" || cur.phase==="WARMUP") && (() => {
+              // Find the next non-zero-duration step after current
+              const nextStep = seq.slice(seqIdx+1).find(s => s.secs > 0 && s.phase !== "TRANSITION");
+              if (!nextStep) return null;
+              const label = nextStep.phase==="REST" ? `REST · ${nextStep.secs}s` : nextStep.phase==="PREPARE" ? "PREPARE" : nextStep.exercise || nextStep.label;
+              return (
+                <div style={{marginTop:18,padding:"8px 18px",borderRadius:12,background:"rgba(0,0,0,0.15)",animation:"slideUp 0.3s ease",textAlign:"center"}}>
+                  <div style={{fontSize:11,color:ps.text,opacity:0.45,fontWeight:700,letterSpacing:"0.12em",marginBottom:3}}>UP NEXT</div>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:800,color:ps.text,opacity:0.7}}>{label}</div>
+                </div>
+              );
+            })()}
+
+            {/* During REST — show what's coming up */}
             {cur.phase==="REST" && cur.nextExercise && (
-              <div style={{marginTop:20,padding:"10px 20px",borderRadius:12,background:"rgba(0,0,0,0.15)",animation:"slideUp 0.3s ease"}}>
-                <div style={{fontSize:13,color:ps.text,opacity:0.5,fontWeight:700,letterSpacing:"0.1em",marginBottom:4}}>NEXT UP</div>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:26,fontWeight:800,color:ps.text,opacity:0.8}}>{cur.nextExercise}</div>
+              <div style={{marginTop:18,padding:"12px 22px",borderRadius:14,background:"rgba(0,0,0,0.2)",animation:"slideUp 0.3s ease",textAlign:"center"}}>
+                <div style={{fontSize:11,color:ps.text,opacity:0.5,fontWeight:700,letterSpacing:"0.12em",marginBottom:5}}>UP NEXT</div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:900,color:ps.text,opacity:0.9}}>{cur.nextExercise}</div>
               </div>
             )}
           </>
@@ -686,7 +714,7 @@ export default function IntervalTimer({ slots=[], trackId="FORGE", trackColor="#
             {/* Work blocks done */}
             <div style={{textAlign:"center"}}>
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:42,fontWeight:900,color:ps.text,lineHeight:1}}>{workDone}</div>
-              <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:ps.text,opacity:0.5,marginTop:2}}>DONE</div>
+              <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:ps.text,opacity:0.5,marginTop:2}}>COMPLETED</div>
             </div>
 
             {/* Play/Pause + Skip */}
@@ -720,7 +748,7 @@ export default function IntervalTimer({ slots=[], trackId="FORGE", trackColor="#
             {/* Blocks remaining */}
             <div style={{textAlign:"center"}}>
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:42,fontWeight:900,color:ps.text,lineHeight:1}}>{workBlocks.length-workDone}</div>
-              <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:ps.text,opacity:0.5,marginTop:2}}>LEFT</div>
+              <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",color:ps.text,opacity:0.5,marginTop:2}}>REMAINING</div>
             </div>
           </div>
         ) : (
